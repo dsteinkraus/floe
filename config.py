@@ -45,9 +45,9 @@ class Config(object):
         self._special_modes = {
             'ftp_catchup' : {},
             'ftp_remove': {},
-            'ftp_rerun': {},
+            'im_rerun': {},
             'ftp_clear': {},
-            'ftp_meta_from_local': {},
+            'im_meta_from_local': {},
             'restore_from_archive': {},
             'test_deploy_test': {}
         }

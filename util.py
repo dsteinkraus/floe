@@ -67,7 +67,6 @@ def pathify(*args):
     return ret
 
 # get list of plain files in dir matching spec. Path not included in output.
-# WARNING: Py3 only.from
 def plain_files(dir_, wanted_expr):
     if not dir_.endswith('/'):
         dir_ += '/'

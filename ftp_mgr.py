@@ -47,7 +47,7 @@ class FtpMgr(object):
             self._re_exclude.append(re.compile(str))
 
     # return count of files downloaded
-    def update_folder(self):
+    def update_products(self):
         logging.info("starting FTP update from %s" % self._label)
         start = u.timestamp_now()
         self._download_count = 0
@@ -74,7 +74,7 @@ class FtpMgr(object):
             return 0
 
         # remove or modify persisted file metadata if full path matches passed regex
-        if self.config.do('ftp_remove') or self.config.do('ftp_rerun'):
+        if self.config.do('ftp_remove') or self.config.do('im_rerun'):
             regex = re.compile(self.config.special_mode_args[1])
 
             def test(fi):
@@ -85,7 +85,7 @@ class FtpMgr(object):
             return 0
 
         # build metadata file from what's in input dir
-        if self.config.do('ftp_meta_from_local'):
+        if self.config.do('im_meta_from_local'):
             self.metadata_from_local(clear_first=True)
             return 0
 
@@ -96,7 +96,7 @@ class FtpMgr(object):
         self._ftp.retrlines('LIST', cur_ftp_files.append)
         for entry in cur_ftp_files:
             if self.config.signalled():
-                logging.info("signal set, leaving ftp.update_folder")
+                logging.info("signal set, leaving ftp.update_products")
                 break
             finfo = u.ftp_metadata(entry)
             file_name = finfo['name']
@@ -148,7 +148,7 @@ class FtpMgr(object):
         self._ftp = None
         self.write_metadata()
         elapsed = u.timestamp_now() - start
-        logging.info("FTP.update_folder finished in %f seconds, downloaded %i files"
+        logging.info("FTP.update_products finished in %f seconds, downloaded %i files"
                      % (elapsed, self._download_count))
         return self._download_count
 
@@ -174,7 +174,7 @@ class FtpMgr(object):
                             logging.debug("apply action '%s' to '%s'" % (action, finfo['full']))
                             if action == 'ftp_remove':
                                 continue # remove whole finfo by not loading it
-                            if action == 'ftp_rerun':
+                            if action == 'im_rerun':
                                 if 'rules_run' in finfo:
                                     del(finfo['rules_run'])
                         self._local_files[finfo['name']] = finfo
@@ -203,6 +203,8 @@ class FtpMgr(object):
             finfo = u.local_metadata(self._dest_root, file_name)
             self._local_files[finfo['name']] = finfo
         self.write_metadata()
+        msg = "im_meta_from_local completed for im '%s'" % self._label
+        Config.log(msg, tag='FTP_META_FROM_LOCAL')
 
     # fix up loaded metadata (assumed current) by marking files with
     # 'rules_run', and write out to disk.
@@ -221,13 +223,8 @@ class FtpMgr(object):
         # have to do this every time, metadata may have been out of date already
         self.write_metadata()
 
-    # return a deep copy of the requested finfo (so caller doesn't mess up ours)
-    # TODO above comment is false!
-    # return none if no such root-level file
-    def get_root_finfo_copy(self, full):
+    def get_downloaded_finfo(self, full):
         path, filename = os.path.split(full)
-        if path == self._dest_root:
-            if filename in self._local_files:
-                return self._local_files[filename]
-            raise Exception("possible logic error, full file '%s' in root but not in metadata" % full)
+        if filename in self._local_files:
+            return self._local_files[filename]
         return None

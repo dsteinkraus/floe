@@ -18,7 +18,7 @@ class UrlMgr(object):
         self.config = config
         u.ensure_path(config.input)
         self._list_file_name = '_url_list.txt'
-        # TODO should be able to control dir for persist files (e.g. for git convenience)
+        # TODO should be able to separately configure dir for persist files (e.g. for git convenience)
         self._list_file = self.config.admin + '/' + self._list_file_name
         self._download_count = 0
         self._download_limit = self.config.get_int('input', 'url_download_limit', default=0)
@@ -141,7 +141,7 @@ class UrlMgr(object):
         Config.log("", tag='URL_UPDATE_START')
 
         # remove or modify persisted file metadata if full path matches passed regex
-        if self.config.do('ftp_remove') or self.config.do('ftp_rerun'):
+        if self.config.do('ftp_remove') or self.config.do('im_rerun'):
             regex = re.compile(self.config.special_mode_args[1])
 
             def test(fi):
@@ -149,6 +149,11 @@ class UrlMgr(object):
 
             self.read_metadata(test=test, action=self.config.special_mode_args[0])
             self.write_metadata()
+            return 0
+
+        # build metadata file from what's in input dir
+        if self.config.do('im_meta_from_local'):
+            self.metadata_from_local(clear_first=True)
             return 0
 
         self.read_metadata()
@@ -186,7 +191,7 @@ class UrlMgr(object):
                             self._local_files[file_key] = {
                                 'file_key': file_key,
                                 'full': full,
-                                'file_name': file_name,
+                                'name': file_name,
                                 'size': length,
                                 'url': url,
                                 'content-type': content_type
@@ -232,7 +237,7 @@ class UrlMgr(object):
                             Config.log(finfo['full'], tag='URL_' + action)
                             if action == 'ftp_remove':
                                 continue # remove whole finfo by not loading it
-                            if action == 'ftp_rerun':
+                            if action == 'im_rerun':
                                 if 'rules_run' in finfo:
                                     del(finfo['rules_run'])
                         self._local_files[finfo['name']] = finfo
@@ -252,12 +257,31 @@ class UrlMgr(object):
             for fname, finfo in self._local_files.items():
                 fh.write(json.dumps(finfo, cls=u.DateTimeEncoder) + '\n')
 
+    # update existing, or build a new metadata file from contents of input folder.
+    # with url_mgr, files can be downloaded to arbitrary subpaths, so have to walk whole tree.
+    def metadata_from_local(self, clear_first=False):
+        if clear_first:
+            self._local_files.clear()
+        for tag, settings in self._url_patterns.items():
+            for dir_name, subdirs, files in os.walk(settings['path']):
+                for file_name in files:
+                    key_path = self._full_path_to_file_key_path(dir_name)
+                    file_key = os.path.join(key_path, file_name)
+                    if file_key in self._local_files:
+                        continue
+                    finfo = u.local_metadata(dir_name, file_name)
+                    finfo['file_key'] = file_key
+                    self._local_files[file_key] = finfo
+        self.write_metadata()
+        msg = "im_meta_from_local completed for im 'url'"
+        Config.log(msg, tag='URL_META_FROM_LOCAL')
+
     # fix up loaded metadata (assumed current) by marking files with
     # 'rules_run', and write out to disk.
     def update_rules_run_files(self):
         if len(self.rules_run_files):
             for full in self.rules_run_files:
-                file_key = self.full_to_file_key(full)
+                file_key = self._full_to_file_key(full)
                 if file_key not in self._local_files:
                     err = "BUG: file '%s' is not in metadata" % full
                     Config.log(err, tag='URL_INVALID_RULES_RUN_FILE')
@@ -269,32 +293,19 @@ class UrlMgr(object):
         # have to do this every time, metadata may have been out of date already
         self.write_metadata()
 
-    # return a deep copy of the requested finfo (so caller doesn't mess up ours)
-    # TODO above comment is false!
-    # return none if no such root-level file
-    def get_root_finfo_copy(self, full):
+    def get_downloaded_finfo(self, full):
         path, filename = os.path.split(full)
-        file_key = self.full_to_file_key(full)
-        if not file_key:
+        file_key = self._full_to_file_key(full)
+        if not file_key or not file_key in self._local_files:
             return None  # not a file we downloaded
-        for tag, settings in self._url_patterns.items():
-            # we are only looking for root-level files, not unpacked files
-            if path == settings['path']:
-                if file_key in self._local_files:
-                    return self._local_files[file_key]
-                msg = "possible logic error, full file '%s' in root but not in metadata" % full
-                Config.log(msg, tag='URL_ROOT_FILE_NOT_IN_META')
-                return None
-        return None
+        return self._local_files[file_key]
 
-    def full_to_file_key(self, full):
+    def _full_path_to_file_key_path(self, path):
+        return u.make_rel_path(self.config.input, path, strict=False, no_leading_slash=True)
+
+    def _full_to_file_key(self, full):
         path, filename = os.path.split(full)
-        p = u.make_rel_path(self.config.input, path, strict=False, no_leading_slash=True)
+        p = self._full_path_to_file_key_path(path)
         if not p:
             return None
         return os.path.join(p, filename)
-
-    def update_folder(self):
-        # TODO - refactor, use name that makes sense for all IM types
-        # TODO also refactor phase name 'ftp'
-        return self.update_products()

@@ -23,7 +23,7 @@ class FileDest(object):
         self._file_dest_root = self.config.get(config_section, 'file_dest_root')
         self.tree_info = {}
         self._tree_last_modified = 1e99
-        # TODO REVIEW - config_section is not sufficient uniquifier, need to verify
+        # TODO REVIEW - config_section is not sufficient uniquifier, need to verify that
         # no other FileDest instance is using same uniquifier. (still true after postgres btw)
         # file_dest_root had also better be unique. Check both dynamically with a class variable.
         self._tree_info_file = config.admin + '/_' + config_section + '_file_dest_tree_info.txt'
@@ -170,7 +170,7 @@ class FileDest(object):
                             # 'e_tag': obj.e_tag,
                             'md5': local_md5
                         }
-                        # transfer meta (e.g. thumbnail info) if exists - TODO review
+                        # transfer meta (e.g. thumbnail info) if exists
                         if local_tree_meta and local_file in local_tree_meta:
                             self.transfer_metadata(local_tree_meta[local_file], local_root=self.local_root, dest=info)
 

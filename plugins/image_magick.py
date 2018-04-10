@@ -137,11 +137,8 @@ def scale_and_copy(interp, finfo, argstr):
 # TODO! if animated, offer option only include frame N (default 0)
 def make_thumb(interp, finfo, argstr):
     msg = None
-    ### TODO DESIGN ISSUE! provenance != thumbness. Fix it
-    # if 'parent_full' in finfo and finfo['parent_full']:
-    #    msg = "file '%s' has parent_full '%s', won't make thumb." % (finfo['full'], finfo['parent_full'])
-    if finfo['name'].startswith('thumb_'):
-        msg = "file '%s' has naming convention, won't make thumb." % finfo['full']
+    if 'parent_full' in finfo:
+        msg = "file '%s' has parent_full, won't make thumb of thumb." % finfo['full']
     if msg:
         Config.log(msg, tag='MAKE_THUMB_NORECURSE')
         return

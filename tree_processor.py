@@ -102,7 +102,7 @@ class TreeProcessor(object):
                 match = self._re['action'].search(line)
                 if match:
                     if not cur_rule['condition']:
-                        raise Exception("Logic error1  in rule line '%s'" % line)
+                        raise Exception("Logic error 1  in rule line '%s'" % line)
                     cur_rule['actions'].append({'text': match.group(2)})
                     continue
                 raise Exception("Logic error 2 in rule line '%s'" % line)
@@ -116,7 +116,7 @@ class TreeProcessor(object):
             Config.log(str(exc), tag='TP_RULES')
             raise
 
-    # read copy rules and build a function to apply them in order
+    # read rules and build a function to apply them in order
     def _parse_rules(self):
         del self._rule_funcs['self_tree'][:]
         del self._rule_funcs['dest'][:]
@@ -187,9 +187,8 @@ class TreeProcessor(object):
         def test_regex_wrapper(target_name, regex):
             def test_regex(finfo):
                 # local and dest finfos have different props. 'full', the full local path,
-                # takes priority - a dest finfo might not have it. If a finfo does not correspond
-                # to a local file, care must be taken to not allow 'full' to be set.
-                # TODO! I thought you dumped this logic in favor of explicitly checking rule type!
+                # should only be present in local finfos. 'key', a relative path to a content
+                # item, should only exist in dest finfos.
                 if target_name == 'full':
                     if 'full' not in finfo:
                         raise Exception("test_regex: target_name 'full' not available, finfo = %s" % str(finfo))
@@ -338,9 +337,7 @@ class TreeProcessor(object):
                         raise Exception("logic error pass 0")
                     i_im = 0
                     for im in self.input_mgrs:
-                        # important: make a deep copy so we don't mess with
-                        # the finfos in the im object # TODO comment not honored in code
-                        finfo = im.get_root_finfo_copy(full)
+                        finfo = im.get_downloaded_finfo(full)
                         if finfo:
                             if 'rules_run' in finfo and finfo['rules_run']:
                                 done_with_file = True
@@ -407,8 +404,6 @@ class TreeProcessor(object):
             return
         self._apply_file_rules(rule_type, finfo)
 
-    # TODO life is better if we are guaranteed dir_name is a relative path, but can we?
-    # if not, split into <drive/share>, <relpath>, <file_name>!
     def _apply_file_rules(self, rule_type, finfo):
         matched = False
         for rule in self._rule_funcs[rule_type]:
@@ -422,7 +417,6 @@ class TreeProcessor(object):
         finfo['rules_run'] = True
         # NOTE: we did work even if we matched no rules, or only 'ignore' or 'stop' rules,
         # because setting 'rules_run' will prevent us from looking at this file again.
-        # TODO CLEAN if matched and 'stop' not in finfo:
         self._files_processed += 1
         Config.log(finfo['full'], tag='WORK_DONE_TP')
 
@@ -489,8 +483,7 @@ class TreeProcessor(object):
                     rule['apply'](finfo)
 
     # copy our metadata to dest finfo, but don't overwrite any values.
-    # TODO! Look for a simpler version of this that operates in fi_dest. see:
-    # https://stackoverflow.com/questions/38987/how-to-merge-two-dictionaries-in-a-single-expression
+    # TODO: need a more sophisticated, configurable system for metadata copying
     def copy_metadata(self, fi_dest):
         fi_src = None
         if 'full' in fi_dest and fi_dest['full'] in self.file_info:
@@ -503,10 +496,8 @@ class TreeProcessor(object):
             # logging.debug("copy_metadata can't find tp finfo for fi_dest '%s'" % str(fi_dest))
             return
         for key, value in fi_src.items():
-            # todo dict for this. see is_protected_metadata
+            # todo consolidate with is_protected_metadata
             if key == 'full' or key == 'name' or key == 'path' or key == 'rules_run' or key == 'stop':
-                # todo add others! see
-                # todo - chance for a debugging check for equality here
                 continue
             if key in fi_dest:
                 continue
@@ -582,7 +573,7 @@ class TreeProcessor(object):
         shutil.copyfile(finfo['full'], dest)
         # set metadata for new file
         local = u.local_metadata(dest_dir, dest_file)
-        newfi = copy.deepcopy(finfo) # TODO too dangerous!
+        newfi = copy.deepcopy(finfo) # TODO replace with unified metadata-copy system
         newfi['name'] = dest_file
         newfi['path'] = dest_dir
         newfi['full'] = dest
@@ -635,7 +626,7 @@ class TreeProcessor(object):
         if 'verbose' in options and options['verbose']:
             logging.info("restore_from_archive starting")
         re_wanted = re.compile(wanted)
-        archive_root = self.config.archive + '/output' # TODO fix /output
+        archive_root = self.config.archive + '/output'
         for dir_name, subdirs, files in os.walk(archive_root):
             for file_name in files:
                 full_src = dir_name + '/' + file_name

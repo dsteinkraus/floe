@@ -92,10 +92,10 @@ try:
 
     # handle special modes
     if config.in_special_mode():
-        if config.do('ftp_catchup') or config.do('ftp_remove') or config.do('ftp_rerun') \
-                or config.do('ftp_clear') or config.do('ftp_meta_from_local'):
+        if config.do('ftp_catchup') or config.do('ftp_remove') or config.do('im_rerun') \
+                or config.do('ftp_clear') or config.do('im_meta_from_local'):
             for im in input_mgrs:
-                im.update_folder()
+                im.update_products()
             sys.exit(1)
         if config.do('restore_from_archive'):
             tp.restore_from_archive(config.special_mode_args[1], options={'verbose': True})
@@ -120,7 +120,7 @@ try:
         work_done = False
         if config.do('ftp'):
             for im in input_mgrs:
-                work_done = im.update_folder() > 0 or work_done
+                work_done = im.update_products() > 0 or work_done
         Config.log("work_done %s after im update (iter %i)" % (work_done, config.iteration), tag='WORK_DONE')
 
         if config.do('process'):

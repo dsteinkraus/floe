@@ -44,7 +44,8 @@ Optional, depending on scenario:
 * PanoplyCL (if needed to build image files from netCDF data)
 
 These are only required by corresponding plugin files in the plugins/ directory, and by removing unused
-plugins, the corresponding dependencies will also go away.
+plugins, the corresponding dependencies will also go away. (Sometimes there are no extra Python dependencies,
+but the plugins simply won't work unless the corresponding programs are installed.)
 
 Currently, floe keeps track of file metadata in flat files, so no database software is needed. An optional
 PostgreSQL module for metadata is in the works, and this of course would require a PostgreSQL server.
@@ -153,7 +154,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-This project is licensed under the MIT License - see [LICENSE.md](LICENSE.md)
+This project is licensed under the MIT License - see [LICENSE](LICENSE)
 
 ## Acknowledgments
 
